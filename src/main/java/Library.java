@@ -3,6 +3,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,7 +22,24 @@ public class Library {
     public double alphaFilm = 0.05;
     public double betaReturn = 0.02;
 
+    private final List<OverdueObserver> observers = new ArrayList<>();
+    private final Set<Integer> overdueNotified = new HashSet<>();
+
     public Library() {}
+
+    public void addObserver(OverdueObserver observer) {
+        if (observer != null) observers.add(observer);
+    }
+
+    public void removeObserver(OverdueObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyObservers(User user, LibraryItem item, int daysLate) {
+        for (OverdueObserver o : new ArrayList<>(observers)) {
+            o.notifyOverdue(user, item, daysLate);
+        }
+    }
 
     public void addUser(User u) { users.add(u); }
     public List<User> getUsers() { return users; }
@@ -34,6 +52,20 @@ public class Library {
     public LibraryItem getItemById(int id) { return items.get(id); }
 
     public int nextId() { return nextItemId++; }
+
+    public List<LibraryItem> search(String keyword) {
+        List<LibraryItem> res = new ArrayList<>();
+        for (LibraryItem it : items.values()) {
+            if (it.matches(keyword)) res.add(it);
+        }
+        return res;
+    }
+
+    public List<LibraryItem> getSortedCatalog() {
+        List<LibraryItem> list = new ArrayList<>(items.values());
+        Collections.sort(list);
+        return list;
+    }
 
     public void loadBooksFromResource(String resourcePath) throws Exception {
         try (InputStream in = getClass().getResourceAsStream(resourcePath)) {
@@ -132,6 +164,7 @@ public class Library {
         User borrower = it.borrower;
         double fine = it.returned(day);
         if (borrower != null) borrower.returnItem(itemId);
+        overdueNotified.remove(itemId);
         return fine;
     }
 
@@ -179,7 +212,7 @@ public class Library {
 
                     if (u.returnsOnTime()) {
                         int dueCheck = (day - it.loanDay);
-                        if (dueCheck == it.getLoanPeriodDaysForBorrower()) {
+                        if (dueCheck == it.getLoanPeriod(u)) {
                             double fine = returnItem(itemId, day);
                             totalFines += fine;
                             totalReturnEvents++;
@@ -188,8 +221,13 @@ public class Library {
                     }
 
                     if (!returnedToday) {
-                        int overdueCheck = (day - it.loanDay) - it.getLoanPeriodDaysForBorrower();
+                        int overdueCheck = (day - it.loanDay) - it.getLoanPeriod(u);
                         if (overdueCheck > 0) {
+                            if (!overdueNotified.contains(itemId)) {
+                                User borrower = it.borrower;
+                                notifyObservers(borrower, it, overdueCheck);
+                                overdueNotified.add(itemId);
+                            }
                             if (random.nextDouble() < betaReturn) {
                                 double fine = returnItem(itemId, day);
                                 totalFines += fine;

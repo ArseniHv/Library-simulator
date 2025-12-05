@@ -1,26 +1,34 @@
-public class Film extends LibraryItem {
-    private String genre;
-    private String director;
-    private int year;
-    private int runtime;
-    private String rating;
+public final class Film extends LibraryItem implements Loanable {
+    private final String genre;
+    private final String director;
+    private final int filmYear;
+    private final int runtime;
+    private final String rating;
 
     public Film(int id, String title, String genre, String director, int year, int runtime, String rating) {
-        super(id, title);
+        super(id, title, year);
         this.genre = genre;
         this.director = director;
-        this.year = year;
+        this.filmYear = year;
         this.runtime = runtime;
         this.rating = rating;
     }
 
     @Override
-    public int getLoanPeriodDaysForBorrower() {
+    public int getLoanPeriod(User user) {
         return 7;
     }
 
     @Override
-    public double getFinePerDay() {
+    public double getDailyOverdueFee() {
         return 5.0;
+    }
+
+    @Override
+    protected int typeOrder() { return 3; }
+
+    @Override
+    protected String[] getSearchableFields() {
+        return new String[] { getTitle(), genre, director, rating };
     }
 }

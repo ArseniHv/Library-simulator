@@ -15,6 +15,21 @@ public class Main {
         lib.loadJournalsFromResource("/jlist.csv");
         lib.loadMoviesFromResource("/movies.csv");
 
+        lib.addObserver(new EmailNotifier());
+
+        OverdueObserver oneTime = new OverdueObserver() {
+            private boolean fired = false;
+            @Override
+            public void notifyOverdue(User user, LibraryItem item, int daysLate) {
+                if (!fired) {
+                    System.out.println("[One-time observer] First overdue notification: user " + user.getId() + ", item " + item.getTitle());
+                    fired = true;
+                    lib.removeObserver(this);
+                }
+            }
+        };
+        lib.addObserver(oneTime);
+
         Map<String, Object> result = lib.runSimulation(365);
 
         System.out.println("Items loaded: 100 users, items = " + result.get("itemsCount"));
